@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Öklid Elementler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#2b2622; --ink-2:#4a433c; --paper:#f3eee3; --paper-2:#e9e2d3; --red:#a32d2d; --grey:#aaa396; --wood:#c4a06e; --ok:#3e6b3a; --line:#6a625a;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:Literata,Georgia,"Times New Roman",serif;color:var(--ink);background:var(--ink);display:flex;min-height:100%}
+main{display:grid;grid-template-columns:340px 1fr;width:100%;min-height:100%}
+aside{background:var(--ink);color:var(--paper);padding:24px 22px;display:flex;flex-direction:column;gap:16px;overflow:auto}
+h1{font-weight:600;font-size:1.35rem;margin:0;letter-spacing:.01em}
+/* Öklid Elementler v1.3 — Şenol Gülgönül */
+h1 small{display:block;font-weight:400;font-size:.9rem;color:var(--grey);margin-top:4px}
+.lvl{display:flex;gap:6px}
+.lvl button{flex:0 0 40px;justify-content:center;padding:8px 0;font-size:1.2rem}
+.lvl select{flex:1;min-width:0;font:inherit;font-size:.95rem;background:var(--ink);color:var(--paper);border:1px solid var(--line);border-radius:6px;padding:8px 10px;cursor:pointer}
+.lvl select:focus-visible{outline:2px solid var(--wood);outline-offset:2px}
+.lvl option{background:var(--ink);color:var(--paper)}
+.goal{font-size:1.05rem;line-height:1.55}
+.goal b{font-weight:600;color:#fff}
+button{font:inherit;font-size:.98rem;text-align:left;border:1px solid var(--line);background:transparent;color:var(--paper);padding:10px 12px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+button:hover{border-color:var(--paper)}
+button[aria-pressed="true"]{background:var(--paper);color:var(--ink);border-color:var(--paper)}
+button:disabled{opacity:.35;cursor:default}
+button .key{font-size:.8rem;color:var(--grey)}
+button[aria-pressed="true"] .key{color:var(--ink-2)}
+button:focus-visible{outline:2px solid var(--wood);outline-offset:2px}
+.row{display:flex;gap:6px}
+.row button{flex:1;justify-content:center;padding:9px 6px}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tools button{padding:8px 10px;font-size:.92rem;line-height:1.3}
+.credit{margin-top:auto;padding-top:14px;border-top:1px solid var(--line);font-size:.85rem;color:var(--grey)}
+.rules b{color:var(--paper);font-weight:600}
+.hint,.rules{font-size:.92rem;line-height:1.5;color:var(--grey)}
+details summary{cursor:pointer;color:var(--paper)}
+details p{margin:8px 0 0}
+.status{min-height:1.5em;font-size:1rem;line-height:1.45}
+.status.done{color:#d8e8c8}
+.status.done b{color:#fff}
+#winNext:empty{display:none}
+#winNext button{width:100%;justify-content:center;background:var(--paper);color:var(--ink);border-color:var(--paper);font-weight:600}
+.stage{position:relative;background:var(--paper);touch-action:none}
+canvas{display:block;width:100%;height:100%;cursor:crosshair}
+.toast{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:6px;font-size:1rem;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90%}
+.toast.show{opacity:1}
+@media (max-width:820px){
+  main{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  aside{padding:16px;gap:12px;max-height:52vh}
+  .stage{min-height:48vh}
+  h1{font-size:1.15rem}
+}
+@media (prefers-reduced-motion: reduce){ .toast{transition:none} }
+</style>
+</head>
+<body>
+<main>
+<aside>
+  <h1>Öklid Elementler</h1>
+  <div class="lvl">
+    <button id="prev" type="button" aria-label="Önceki seviye">‹</button>
+    <select id="levelSel" aria-label="Seviye"></select>
+    <button id="next" type="button" aria-label="Sonraki seviye">›</button>
+  </div>
+  <div class="goal" id="goal"></div>
+  <div id="winNext"></div>
+  <div class="row">
+    <button id="undo" type="button">Geri al <span class="key">Z</span></button>
+    <button id="reset" type="button">Baştan <span class="key">R</span></button>
+    <button id="fit" type="button">Sığdır <span class="key">S</span></button>
+  </div>
+  <div class="tools" id="tools" role="toolbar" aria-label="Araçlar"></div>
+  <div class="status" id="status" aria-live="polite"></div>
+  <div class="rules"><details><summary>Araçlar ve kurallar</summary>
+    <p><b>Cetvel:</b> iki noktaya bas, ikisinden geçen doğru çizilir (ekranı boydan boya; uzatma gerekmez).<br>
+    <b>Pergel:</b> ilk nokta merkez, ikinci nokta çemberin üzerinden geçtiği nokta (yarıçap). Açıklık başka yere taşınamaz.<br>
+    <b>Yeni nokta</b> yalnız kesişimde doğar: gri belirir, ilk basış noktayı doğurur, ikinci basış seçer. Seçili noktaya bir daha basınca seçim kalkar.</p>
+    <p>Kazanınca açılan araçlar, seçim sırasıyla:<br>
+    <b>Eşkenar üçgen:</b> iki nokta.<br>
+    <b>Taşınmış pergel:</b> merkez, sonra yarıçap olacak parçanın iki ucu.<br>
+    <b>Açıortay:</b> bir kol üzerinde nokta, köşe, öbür kol üzerinde nokta.<br>
+    <b>Orta nokta:</b> iki nokta.<br>
+    <b>Dikme / Paralel:</b> doğrunun iki noktası, sonra geçecek nokta.<br>
+    <b>Kare:</b> kenarın iki ucu, sonra karenin karşı tarafında kalacak bir nokta.</p>
+    <p>Boş yerden sürükleyerek kaydır, tekerlekle ya da iki parmakla yaklaştır; S ile sığdır. Z geri al, R baştan, Esc seçimi temizle.</p></details></div>
+  <div class="credit">Şenol Gülgönül · v1.3</div>
+</aside>
+<div class="stage" id="stage">
+  <canvas id="c" aria-label="Çizim alanı"></canvas>
+  <div class="toast" id="toast"></div>
+</div>
+</main>
+<script>
+(() => {
+'use strict';
+const INK='#2b2622', RED='#a32d2d', GREY='#aaa396', PAPER='#f3eee3', OK='#3e6b3a';
+const EPS=1e-6, TOL=1.5;           // geometri toleransı (dünya birimi)
+const $=id=>document.getElementById(id);
+const canvas=$('c'), ctx=canvas.getContext('2d'), stage=$('stage');
+let DPR=1, Wpx=0, Hpx=0;
+
+// ---------------------------------------------------------------- geometri
+const dist=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
+const same=(p,q)=>dist(p,q)<TOL;
+const R_=c=>c.rad!=null?c.rad:dist(c.c,c.r);
+function lineLineX(l1,l2){
+  const {a:p1,b:p2}=l1,{a:p3,b:p4}=l2;
+  const d=(p1.x-p2.x)*(p3.y-p4.y)-(p1.y-p2.y)*(p3.x-p4.x); if(Math.abs(d)<EPS) return [];
+  const t=((p1.x-p3.x)*(p3.y-p4.y)-(p1.y-p3.y)*(p3.x-p4.x))/d;
+  return [{x:p1.x+t*(p2.x-p1.x), y:p1.y+t*(p2.y-p1.y)}];
+}
+function lineCircleX(l,c){
+  const r=R_(c); const dx=l.b.x-l.a.x, dy=l.b.y-l.a.y; const fx=l.a.x-c.c.x, fy=l.a.y-c.c.y;
+  const A=dx*dx+dy*dy, B=2*(fx*dx+fy*dy), C=fx*fx+fy*fy-r*r; let D=B*B-4*A*C; if(D<-EPS) return []; D=Math.max(D,0);
+  const s=Math.sqrt(D); const ts=D<EPS?[-B/(2*A)]:[(-B-s)/(2*A),(-B+s)/(2*A)];
+  return ts.map(t=>({x:l.a.x+t*dx,y:l.a.y+t*dy}));
+}
+function circleCircleX(c1,c2){
+  const r1=R_(c1), r2=R_(c2), d=dist(c1.c,c2.c);
+  if(d<EPS||d>r1+r2+EPS||d<Math.abs(r1-r2)-EPS) return [];
+  const a=(r1*r1-r2*r2+d*d)/(2*d), h2=r1*r1-a*a, h=Math.sqrt(Math.max(h2,0));
+  const mx=c1.c.x+a*(c2.c.x-c1.c.x)/d, my=c1.c.y+a*(c2.c.y-c1.c.y)/d;
+  const ox=h*(c2.c.y-c1.c.y)/d, oy=h*(c2.c.x-c1.c.x)/d;
+  return h<EPS?[{x:mx,y:my}]:[{x:mx+ox,y:my-oy},{x:mx-ox,y:my+oy}];
+}
+
+// ---------------------------------------------------------------- durum
+let level=0, pts=[], objs=[], sel=[], tool='line', history=[], won=false;
+let view={s:1,tx:0,ty:0}, winObj=null, candCache=null, bornHint=false;
+const changed=()=>{ candCache=null; };
+const toWorld=(x,y)=>({x:(x-view.tx)/view.s, y:(y-view.ty)/view.s});
+const WW=1000, WH=600;                    // sabit dünya: seviyeler bu birimde tanımlı
+function fitView(){ const sc=Math.min(Wpx/WW,Hpx/WH)*0.9; view={s:sc,tx:(Wpx-WW*sc)/2,ty:(Hpx-WH*sc)/2}; }
+const TOOLS={                             // unlock: n → n. seviye kazanılınca açılır
+  line:{name:'Cetvel: doğru',key:'D',need:2},
+  circle:{name:'Pergel: çember',key:'P',need:2},
+  eq:{name:'Eşkenar üçgen (I.1)',key:'E',need:2,unlock:1},
+  copy:{name:'Taşınmış pergel (I.2)',key:'T',need:3,unlock:2},
+  bis:{name:'Açıortay (I.9)',key:'A',need:3,unlock:4},
+  mid:{name:'Orta nokta (I.10)',key:'O',need:2,unlock:5},
+  perp:{name:'Dikme (I.11–12)',key:'K',need:3,unlock:7},
+  par:{name:'Paralel (I.31)',key:'L',need:3,unlock:8},
+  sq:{name:'Kare (I.46)',key:'Q',need:3,unlock:9},
+};
+const ANG=0.02;                             // açı toleransı (radyan)
+const dirOf=(p,q)=>{const d=Math.hypot(q.x-p.x,q.y-p.y)||1;return {x:(q.x-p.x)/d,y:(q.y-p.y)/d};};
+const angBetween=(u,v)=>Math.acos(Math.min(1,Math.max(-1,u.x*v.x+u.y*v.y)));
+const isPerp=(l,m)=>Math.abs(dirOf(l.a,l.b).x*dirOf(m.a,m.b).x+dirOf(l.a,l.b).y*dirOf(m.a,m.b).y)<ANG;
+const isPar=(l,m)=>Math.abs(Math.abs(dirOf(l.a,l.b).x*dirOf(m.a,m.b).x+dirOf(l.a,l.b).y*dirOf(m.a,m.b).y)-1)<ANG*ANG/2+1e-4;
+const userLines=()=>objs.filter(o=>o.t==='line'&&!o.given);
+function sqCorners(Pp,Qq,sgn){ const u=dirOf(Pp,Qq), n={x:-u.y,y:u.x}, L=dist(Pp,Qq); return [{x:Pp.x+n.x*L*sgn,y:Pp.y+n.y*L*sgn},{x:Qq.x+n.x*L*sgn,y:Qq.y+n.y*L*sgn}]; }
+function sideSign(Pp,Qq,away){ const c=(Qq.x-Pp.x)*(away.y-Pp.y)-(Qq.y-Pp.y)*(away.x-Pp.x); return c>0?-1:1; }   // away'in karşı tarafı
+function findSquare(Pp,Qq,away){                     // pts içinde Pp-Qq üzerine kurulmuş kare var mı (kenarları çizili)
+  for(const sgn of (away?[sideSign(Pp,Qq,away)]:[1,-1])){
+    const [d,e]=sqCorners(Pp,Qq,sgn); const D=pts.find(q=>same(q,d)), E=pts.find(q=>same(q,e));
+    if(D&&E&&hasSeg(Pp,D)&&hasSeg(Qq,E)&&hasSeg(D,E)) return [Pp,Qq,E,D];
+  } return null;
+}
+const LEVELS=[
+ {name:'1. seviye · I.1', given:()=>[{x:.34,y:.60,l:'A'},{x:.66,y:.60,l:'B'}],
+  goal:'AB üzerine <b>eşkenar üçgen</b> kur: üçüncü köşeyi bul, kenarları çiz.',
+  check:()=>{const A=P('A'),B=P('B'),r=dist(A,B);
+    const C=pts.find(C=>C!==A&&C!==B&&Math.abs(dist(A,C)-r)<TOL&&Math.abs(dist(B,C)-r)<TOL&&hasSeg(A,C)&&hasSeg(B,C)); return C&&{t:'tri',pts:[A,B,C]};},
+  done:'Yeni araç: eşkenar üçgen.'},
+ {name:'2. seviye · I.2', given:()=>[{x:.30,y:.62,l:'A'},{x:.52,y:.58,l:'B'},{x:.70,y:.74,l:'C'}],
+  goal:'A noktasından, <b>BC uzunluğuna eşit</b> bir doğru parçası çiz. Pergel açıklık taşımaz; yolu bul.',
+  check:()=>{const A=P('A'),B=P('B'),C=P('C'),r=dist(B,C);
+    const L=pts.find(L=>![A,B,C].includes(L)&&Math.abs(dist(A,L)-r)<TOL&&hasSeg(A,L)); return L&&{t:'seg',a:A,b:L};},
+  done:'Yeni araç: taşınmış pergel.'},
+ {name:'3. seviye · I.3', given:()=>[{x:.22,y:.62,l:'A'},{x:.78,y:.62,l:'B'},{x:.38,y:.30,l:'C'},{x:.58,y:.30,l:'D'}],
+  goal:'Uzun parça AB\'den, kısa parça <b>CD\'ye eşit</b> bir parça kes: AB üzerinde, A\'ya CD kadar uzak bir nokta bul.',
+  check:()=>{const A=P('A'),B=P('B'),r=dist(P('C'),P('D'));
+    const E=pts.find(E=>![A,B].includes(E)&&Math.abs(dist(A,E)-r)<TOL&&Math.abs(dist(A,E)+dist(E,B)-dist(A,B))<TOL); return E&&{t:'seg',a:A,b:E};},
+  done:''},
+ {name:'4. seviye · I.9', given:()=>[{x:.30,y:.70,l:'B'},{x:.72,y:.62,l:'A'},{x:.58,y:.26,l:'C'}], objs:()=>[{t:'line',a:P('B'),b:P('A'),given:true},{t:'line',a:P('B'),b:P('C'),given:true}],
+  goal:'B köşesindeki <b>ABC açısını ikiye böl</b>: B\'den geçen ve açıyı eşit iki parçaya ayıran doğruyu çiz.',
+  check:()=>{const A=P('A'),B=P('B'),C=P('C');
+    const l=userLines().find(l=>onLine(l,B)&&(()=>{const q=same(l.a,B)?l.b:l.a; const u=dirOf(B,q), v={x:-u.x,y:-u.y};
+      const ok=w=>Math.abs(angBetween(w,dirOf(B,A))-angBetween(w,dirOf(B,C)))<ANG&&angBetween(w,dirOf(B,A))<angBetween(dirOf(B,A),dirOf(B,C)); return ok(u)||ok(v);})());
+    return l&&{t:'line',l};},
+  done:'Yeni araç: açıortay.'},
+ {name:'5. seviye · I.10', given:()=>[{x:.28,y:.58,l:'A'},{x:.72,y:.58,l:'B'}], objs:()=>[{t:'line',a:P('A'),b:P('B'),given:true}],
+  goal:'AB doğru parçasını <b>ikiye böl</b>: orta noktayı bul.',
+  check:()=>{const A=P('A'),B=P('B');
+    const M=pts.find(M=>![A,B].includes(M)&&Math.abs(dist(A,M)-dist(M,B))<TOL&&Math.abs(dist(A,M)+dist(M,B)-dist(A,B))<TOL); return M&&{t:'pt',p:M};},
+  done:'Yeni araç: orta nokta.'},
+ {name:'6. seviye · I.11', given:()=>[{x:.22,y:.62,l:'A'},{x:.78,y:.62,l:'B'},{x:.46,y:.62,l:'C'}], objs:()=>[{t:'line',a:P('A'),b:P('B'),given:true}],
+  goal:'AB doğrusu üzerindeki C noktasından <b>dikme çık</b>: C\'den geçen ve AB\'ye dik olan doğruyu çiz.',
+  check:()=>{const C=P('C'),ab={a:P('A'),b:P('B')}; const l=userLines().find(l=>onLine(l,C)&&isPerp(l,ab)); return l&&{t:'line',l};},
+  done:''},
+ {name:'7. seviye · I.12', given:()=>[{x:.22,y:.70,l:'A'},{x:.78,y:.70,l:'B'},{x:.42,y:.30,l:'C'}], objs:()=>[{t:'line',a:P('A'),b:P('B'),given:true}],
+  goal:'Doğru dışındaki C noktasından AB\'ye <b>dikme in</b>: C\'den geçen, AB\'ye dik doğruyu çiz.',
+  check:()=>{const C=P('C'),ab={a:P('A'),b:P('B')}; const l=userLines().find(l=>onLine(l,C)&&isPerp(l,ab)); return l&&{t:'line',l};},
+  done:'Yeni araç: dikme.'},
+ {name:'8. seviye · I.31', given:()=>[{x:.22,y:.70,l:'A'},{x:.78,y:.70,l:'B'},{x:.40,y:.34,l:'C'}], objs:()=>[{t:'line',a:P('A'),b:P('B'),given:true}],
+  goal:'C noktasından AB\'ye <b>paralel</b> bir doğru çiz.',
+  check:()=>{const C=P('C'),ab={a:P('A'),b:P('B')}; const l=userLines().find(l=>onLine(l,C)&&isPar(l,ab)&&!onLine(l,ab.a)); return l&&{t:'line',l};},
+  done:'Yeni araç: paralel.'},
+ {name:'9. seviye · I.46', given:()=>[{x:.36,y:.66,l:'A'},{x:.64,y:.66,l:'B'}], objs:()=>[{t:'line',a:P('A'),b:P('B'),given:true}],
+  goal:'AB üzerine <b>kare</b> kur: iki dikme, iki eşit uzunluk, dört kenar çizili.',
+  check:()=>{const q=findSquare(P('A'),P('B'),null); return q&&{t:'poly',pts:q,fill:'rgba(62,107,58,.25)'};},
+  done:'Yeni araç: kare.'},
+ {name:'10. seviye · II.14', given:()=>[{x:.26,y:.66,l:'A'},{x:.62,y:.66,l:'B'},{x:.62,y:.50,l:'C'},{x:.26,y:.50,l:'D'}],
+  objs:()=>[{t:'line',a:P('A'),b:P('B'),given:true},{t:'line',a:P('B'),b:P('C'),given:true},{t:'line',a:P('C'),b:P('D'),given:true},{t:'line',a:P('D'),b:P('A'),given:true}],
+  goal:'ABCD dikdörtgenine <b>alanca eşit bir kare</b> kur. Kenarı, dikdörtgenin iki kenarının orta orantılısı olan kare; dört köşe, dört kenar çizili.',
+  check:()=>{const A=P('A'),B=P('B'),C=P('C'); const s=Math.sqrt(dist(A,B)*dist(B,C));
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){ const p=pts[i],q=pts[j];
+      if(Math.abs(dist(p,q)-s)<TOL){ const sq=findSquare(p,q,null); if(sq) return {t:'poly',pts:sq,fill:'rgba(62,107,58,.3)'}; } }
+    return null;},
+  done:'Oyun bitti.'},
+];
+const P=l=>pts.find(p=>p.l===l);
+function hasSeg(p,q){ return objs.some(o=>o.t==='line'&&((same(o.a,p)&&same(o.b,q))||(same(o.a,q)&&same(o.b,p)))) ||
+  objs.some(o=>o.t==='line'&&onLine(o,p)&&onLine(o,q)); }
+function onLine(l,p){ const dx=l.b.x-l.a.x, dy=l.b.y-l.a.y; return Math.abs(dx*(p.y-l.a.y)-dy*(p.x-l.a.x))/Math.hypot(dx,dy)<TOL; }
+
+// ---------------------------------------------------------------- kayıt, seviye, araçlar
+const wonList=()=>{ try{ return JSON.parse(localStorage.getItem('oklid2-won')||'[]'); }catch(e){ return []; } };
+function markWon(){ try{ const w=wonList(); if(!w.includes(level)){ w.push(level); localStorage.setItem('oklid2-won',JSON.stringify(w)); } }catch(e){} }
+function unmarkWon(){ try{ localStorage.setItem('oklid2-won',JSON.stringify(wonList().filter(i=>i!==level))); }catch(e){} }
+function unlocked(k){ const u=TOOLS[k].unlock; return u==null || level>=u; }   // n. seviyede kazanılan araç n+1'den itibaren
+function load(i){
+  level=Math.max(0,Math.min(LEVELS.length-1,i)); const L=LEVELS[level];
+  pts=L.given().map(g=>({x:g.x*WW,y:g.y*WH,l:g.l,given:true})); objs=L.objs?L.objs():[]; sel=[]; history=[]; won=false; winObj=null; tool='line'; changed(); fitView();
+  $('goal').innerHTML=L.goal;
+  setStatus('',false); renderLevels(); renderTools(); draw();
+  try{ localStorage.setItem('oklid2-level',String(level)); }catch(e){}
+}
+function renderLevels(){
+  const s=$('levelSel'), w=wonList(); s.innerHTML='';
+  LEVELS.forEach((L,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=(w.includes(i)?'✓ ':'')+L.name; s.appendChild(o); });
+  s.value=String(level); $('prev').disabled=level===0; $('next').disabled=level===LEVELS.length-1;
+}
+function renderTools(){
+  const box=$('tools'); box.innerHTML='';
+  for(const [k,t] of Object.entries(TOOLS)){
+    const b=document.createElement('button'); b.type='button'; b.setAttribute('aria-pressed',String(tool===k)); b.disabled=!unlocked(k);
+    b.innerHTML=`<span>${t.name}</span><span class="key">${t.key}</span>`;
+    b.onclick=()=>{ tool=k; sel=[]; renderTools(); draw(); };
+    box.appendChild(b);
+  }
+}
+function setStatus(html,done){
+  const s=$('status'); s.innerHTML=html; s.className='status'+(done?' done':'');
+  const n=$('winNext'); n.innerHTML='';
+  if(done&&level<LEVELS.length-1){ const b=document.createElement('button'); b.type='button'; b.textContent='Sonraki seviye ›'; b.onclick=()=>load(level+1); n.appendChild(b); }
+}
+function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),2000); }
+
+// ---------------------------------------------------------------- kesişimler (gizli adaylar)
+function candidates(){
+  if(candCache) return candCache;
+  const out=[]; const add=p=>{ if(!pts.some(q=>same(q,p))&&!out.some(q=>same(q,p))&&Math.abs(p.x)<1e5&&Math.abs(p.y)<1e5) out.push(p); };
+  for(let i=0;i<objs.length;i++) for(let j=i+1;j<objs.length;j++){
+    const a=objs[i],b=objs[j];
+    if(a.t==='line'&&b.t==='line') lineLineX(a,b).forEach(add);
+    else if(a.t==='line'&&b.t==='circle') lineCircleX(a,b).forEach(add);
+    else if(a.t==='circle'&&b.t==='line') lineCircleX(b,a).forEach(add);
+    else circleCircleX(a,b).forEach(add);
+  }
+  return candCache=out;
+}
+
+// ---------------------------------------------------------------- hamleler
+function commit(o,p){                      // bir hamle: doğan nesneler + doğan noktalar, tek kayıt
+  o=o||[]; p=p||[];
+  for(const q of p){ if(!q.l) q.l=nextLabel(); pts.push(q); }
+  objs.push(...o); history.push({objs:o,pts:p}); changed(); sel=[]; afterMove();
+}
+function afterMove(){
+  draw(); if(won) return;
+  const w=LEVELS[level].check();
+  if(w){ won=true; winObj=w; markWon(); setStatus('<b>Tamamlandı.</b> '+LEVELS[level].done,true); renderLevels(); renderTools(); draw(); }
+}
+function undo(){
+  const h=history.pop(); if(!h) return;
+  const drop=r=>{ objs=objs.filter(o=>!r.objs.includes(o)); pts=pts.filter(p=>!r.pts.includes(p)); };
+  drop(h);
+  // nesneyi doğuran nokta seçimi de hamlenin parçası: hiçbir nesnede kullanılmıyorsa onu da geri al
+  const last=history[history.length-1];
+  if(h.objs.length&&last&&!last.objs.length&&!last.pts.some(p=>objs.some(o=>[o.a,o.b,o.c,o.r].includes(p)))){ history.pop(); drop(last); }
+  changed(); sel=[]; won=false; winObj=null; setStatus('',false); afterMove();
+}
+function nextLabel(){ const used=new Set(pts.map(p=>p.l)); for(const ch of [...'CDEFGHKLMNPQRSTUVXYZ',...'CDEFGHKLMN'.split('').map(c=>c+'₂')]) if(!used.has(ch)) return ch; return '·'; }
+
+// ---------------------------------------------------------------- etkileşim
+function pick(sx,sy,touch){
+  const w=toWorld(sx,sy); const hitR=(touch?26:16)/view.s;
+  let best=null,bd=hitR;
+  for(const p of pts){ const d=dist(p,w); if(d<bd){bd=d;best=p;} }
+  if(best) return best;
+  for(const c of candidates()){ const d=dist(c,w); if(d<bd){bd=d;best=c;} }
+  if(best){ best.l=nextLabel(); best.fresh=true; pts.push(best); history.push({objs:[],pts:[best]}); changed(); return best; }
+  return null;
+}
+const ptrs=new Map(); let drag=null, pinch=null;
+canvas.addEventListener('pointerdown',e=>{
+  canvas.setPointerCapture(e.pointerId);
+  const r=canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+  ptrs.set(e.pointerId,{x,y});
+  if(ptrs.size===2){ const [a,b]=[...ptrs.values()]; pinch={d:dist(a,b),cx:(a.x+b.x)/2,cy:(a.y+b.y)/2,s:view.s,tx:view.tx,ty:view.ty}; drag=null; return; }
+  drag={x,y,tx:view.tx,ty:view.ty,moved:false,touch:e.pointerType==='touch'};
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!ptrs.has(e.pointerId)) return;
+  const r=canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top; ptrs.set(e.pointerId,{x,y});
+  if(pinch&&ptrs.size===2){ const [a,b]=[...ptrs.values()]; const d=dist(a,b); const k=Math.min(Math.max(d/pinch.d,.2),8); const cx=(a.x+b.x)/2, cy=(a.y+b.y)/2;
+    view.s=pinch.s*k; view.tx=cx-(pinch.cx-pinch.tx)*k; view.ty=cy-(pinch.cy-pinch.ty)*k; draw(); return; }
+  if(drag){ const dx=x-drag.x, dy=y-drag.y; if(!drag.moved&&Math.hypot(dx,dy)<(drag.touch?10:6)) return; drag.moved=true; view.tx=drag.tx+dx; view.ty=drag.ty+dy; canvas.style.cursor='grabbing'; draw(); }
+});
+function endPtr(e){
+  ptrs.delete(e.pointerId); canvas.style.cursor='crosshair';
+  if(pinch){ if(ptrs.size<2) pinch=null; drag=null; return; }
+  if(!drag) return; const d=drag; drag=null;
+  if(d.moved) return;                                   // kaydırmaydı, tıklama değil
+  click(d.x,d.y,d.touch);
+}
+canvas.addEventListener('pointerup',endPtr); canvas.addEventListener('pointercancel',endPtr);
+canvas.addEventListener('wheel',e=>{ e.preventDefault(); const r=canvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top;
+  const k=Math.exp(-e.deltaY*0.0015); const ns=Math.min(Math.max(view.s*k,.2),8); const kk=ns/view.s;
+  view.tx=x-(x-view.tx)*kk; view.ty=y-(y-view.ty)*kk; view.s=ns; draw(); },{passive:false});
+function click(x,y,touch){
+  const p=pick(x,y,touch);
+  if(!p){ toast('Yalnız var olan noktalar ve kesişimler seçilebilir'); return; }
+  if(p.fresh){ delete p.fresh; if(!bornHint){ bornHint=true; toast('Nokta doğdu; seçmek için bir daha bas'); } afterMove(); return; }
+  const third=(tool==='perp'||tool==='par')&&sel.length===2;   // dikme/paralelde nokta doğrunun üzerinde olabilir
+  if(sel.includes(p)&&!third){ sel=sel.filter(q=>q!==p); draw(); return; }
+  sel.push(p); const T=TOOLS[tool];
+  if(sel.length<T.need){ draw(); return; }
+  const [a,b,c]=sel;
+  if(tool==='line') commit([{t:'line',a,b}]);
+  else if(tool==='circle') commit([{t:'circle',c:a,r:b}]);
+  else if(tool==='eq'){
+    const cs=circleCircleX({c:a,r:b},{c:b,r:a}); if(!cs.length){ sel=[]; draw(); return; }
+    const top=cs.reduce((m,q)=>q.y<m.y?q:m); let C=pts.find(q=>same(q,top)); const np=[]; if(!C){ C={x:top.x,y:top.y}; np.push(C); }
+    commit([{t:'line',a,b},{t:'line',a,b:C},{t:'line',a:b,b:C}],np);
+  } else if(tool==='copy'){
+    commit([{t:'circle',c:a,rad:dist(b,c)}]);               // I.2: yarıçapı başka yerden alan çember
+  } else if(tool==='bis'){                                 // I.9: a-b-c açısının açıortayı (b köşe)
+    const u=dirOf(b,a), v=dirOf(b,c); const w={x:u.x+v.x,y:u.y+v.y}; if(Math.hypot(w.x,w.y)<1e-9){ sel=[]; draw(); return; }
+    commit([{t:'line',a:b,b:{x:b.x+w.x*100,y:b.y+w.y*100}}]);
+  } else if(tool==='mid'){                                 // I.10: orta nokta
+    const m={x:(a.x+b.x)/2,y:(a.y+b.y)/2}; if(pts.some(q=>same(q,m))){ sel=[]; draw(); return; }
+    commit([],[m]);
+  } else if(tool==='perp'){                                // I.11–12: a-b doğrusuna c'den dikme
+    const u=dirOf(a,b); commit([{t:'line',a:c,b:{x:c.x-u.y*100,y:c.y+u.x*100}}]);
+  } else if(tool==='par'){                                 // I.31: a-b doğrusuna c'den paralel
+    const u=dirOf(a,b); commit([{t:'line',a:c,b:{x:c.x+u.x*100,y:c.y+u.y*100}}]);
+  } else if(tool==='sq'){                                  // I.46: a-b üzerine kare, c'nin karşı tarafına
+    const [d,e]=sqCorners(a,b,sideSign(a,b,c)); let D=pts.find(q=>same(q,d)), E=pts.find(q=>same(q,e)); const np=[];
+    if(!D){ D={x:d.x,y:d.y}; np.push(D); } if(!E){ E={x:e.x,y:e.y}; np.push(E); }
+    commit([{t:'line',a,b:D},{t:'line',a:b,b:E},{t:'line',a:D,b:E}],np);
+  }
+}
+$('undo').onclick=undo;
+$('reset').onclick=()=>{ unmarkWon(); load(level); };
+$('fit').onclick=()=>{ fitView(); draw(); };
+$('prev').onclick=()=>load(level-1);
+$('next').onclick=()=>load(level+1);
+$('levelSel').onchange=e=>load(+e.target.value);
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='SELECT'||e.ctrlKey||e.metaKey||e.altKey) return;
+  const k=e.key.toUpperCase();
+  if(k==='Z') undo(); else if(k==='R'){ unmarkWon(); load(level); } else if(k==='S'){ fitView(); draw(); } else if(e.key==='Escape'){ sel=[]; draw(); }
+  else for(const [id,t] of Object.entries(TOOLS)) if(t.key===k&&unlocked(id)){ tool=id; sel=[]; renderTools(); draw(); }
+});
+
+// ---------------------------------------------------------------- çizim
+function draw(){
+  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.fillStyle=PAPER; ctx.fillRect(0,0,Wpx,Hpx);
+  ctx.setTransform(DPR*view.s,0,0,DPR*view.s,DPR*view.tx,DPR*view.ty); const k=1/view.s;
+  ctx.lineCap='round';
+  for(const o of objs){
+    if(o.t==='line'){ // doğru: iki noktadan geçen, ekranı boydan boya
+      const dx=o.b.x-o.a.x, dy=o.b.y-o.a.y, n=Math.hypot(dx,dy)||1, L=40000;
+      ctx.strokeStyle=o.given?'#6a625a':INK; ctx.lineWidth=2.5*k; ctx.beginPath(); ctx.moveTo(o.a.x-dx/n*L,o.a.y-dy/n*L); ctx.lineTo(o.a.x+dx/n*L,o.a.y+dy/n*L); ctx.stroke();
+    } else { ctx.strokeStyle=RED; ctx.lineWidth=2.2*k; ctx.beginPath(); ctx.arc(o.c.x,o.c.y,R_(o),0,Math.PI*2); ctx.stroke(); }
+  }
+  // kesişim adayları
+  ctx.fillStyle=GREY; for(const c of candidates()){ ctx.beginPath(); ctx.arc(c.x,c.y,4*k,0,Math.PI*2); ctx.fill(); }
+  // seçim önizlemesi
+  if(sel.length===1&&(tool==='circle')){ ctx.setLineDash([6*k,8*k]); ctx.strokeStyle=GREY; ctx.lineWidth=1.5*k; ctx.beginPath(); ctx.arc(sel[0].x,sel[0].y,40*k,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]); }
+  // noktalar
+  ctx.font=`600 ${20*k}px Literata, Georgia, serif`; ctx.textBaseline='middle';
+  for(const p of pts){
+    const s=sel.includes(p); ctx.fillStyle=s?RED:INK; ctx.beginPath(); ctx.arc(p.x,p.y,(s?7:5.5)*k,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=p.given?INK:'#6a625a'; ctx.fillText(p.l,p.x+12*k,p.y-14*k);
+  }
+  if(won&&winObj){
+    ctx.strokeStyle=OK; ctx.fillStyle=OK; ctx.lineWidth=4*k; const w=winObj;
+    if(w.t==='tri'){ const [A,B,C]=w.pts; ctx.beginPath(); ctx.moveTo(A.x,A.y); ctx.lineTo(B.x,B.y); ctx.lineTo(C.x,C.y); ctx.closePath(); ctx.stroke(); }
+    else if(w.t==='seg'){ ctx.beginPath(); ctx.moveTo(w.a.x,w.a.y); ctx.lineTo(w.b.x,w.b.y); ctx.stroke(); }
+    else if(w.t==='pt'){ ctx.beginPath(); ctx.arc(w.p.x,w.p.y,9*k,0,Math.PI*2); ctx.fill(); }
+    else if(w.t==='poly'||w.t==='polys'){ for(const pl of (w.polys||[w])){ ctx.fillStyle=pl.fill; ctx.beginPath(); pl.pts.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y)); ctx.closePath(); ctx.fill(); ctx.stroke(); } }
+    else if(w.t==='line'){ const dx=w.l.b.x-w.l.a.x, dy=w.l.b.y-w.l.a.y, n=Math.hypot(dx,dy)||1, L=40000; ctx.beginPath(); ctx.moveTo(w.l.a.x-dx/n*L,w.l.a.y-dy/n*L); ctx.lineTo(w.l.a.x+dx/n*L,w.l.a.y+dy/n*L); ctx.stroke(); }
+  }
+}
+function resize(){
+  const r=stage.getBoundingClientRect(); DPR=Math.min(window.devicePixelRatio||1,2);
+  Wpx=Math.max(r.width,10); Hpx=Math.max(r.height,10);
+  canvas.width=Wpx*DPR; canvas.height=Hpx*DPR; if(pts.length) fitView();
+  draw();
+}
+window.addEventListener('resize',resize);
+resize();
+let start=0; try{ start=parseInt(localStorage.getItem('oklid2-level')||'0')||0; }catch(e){}
+load(start);
+})();
+</script>
+</body>
+</html>
